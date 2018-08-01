@@ -22,7 +22,7 @@ source(file = "Students.R")
 
 
 # Make a school with 1000 students
-n_students <- 2000
+n_students <- 200
 n_classrooms <- 2
 schl <- school(npop = n_students, nrooms = n_classrooms)
 head(schl)
@@ -87,15 +87,19 @@ dev.off()
 # random graph based on classroom 1
 class1 <- schl[schl$rooms=="Room1",]
 #net <- sna::rgraph(length(class1[,1]),  mode = "graph", tprob = 0.0022)
-net <- sna::rgraph(length(class1[,1]),  mode = "graph", tprob = 0.01)
+net <- sna::rgraph(length(class1[,1]),  mode = "graph", tprob = 0.02)
 net <- network::network(net, directed = FALSE)
 a <- as.matrix(print(net,print.adj = TRUE, matrix.type = "adjacency"))
 #View(as.data.frame(a))
 network.vertex.names(net) <- class1$id
 net$id <- class1$id
 net$treat <- (class1$treatment)
+net$deg <- sna::degree(net)
 # vertex names
-# 
+
+
+
+ 
 pdf("Classroom1_Network.pdf", width = 6, height = 4)
 #ggnet2(net, node.size = 1.5, node.color = net$treat, edge.size = 0.5, edge.color = "grey", node.label = net$id)
 ggnet2(net, node.size = 1.5, node.color = net$treat, edge.size = 0.5, edge.color = "grey")
@@ -107,24 +111,36 @@ inflnc <- data.frame(to_transmit=class1$scores2)
 inflnc$id <- class1$id
 inflnc$treatment <- class1$treatment
 inflnc$scores <- inflnc$to_transmit
+inflnc$degree <- sna::degree(net, gmode = "graph")
 inflnc$to_transmit[inflnc$treatment=="control"] <- 0
-inflnc$multiplier <- 1/rowSums(a)
-inflnc$multiplier[inflnc$treatment=="control" && inflnc$multiplier==Inf] <- 0
-inflnc$multiplier[inflnc$multiplier==Inf] <- 1
+inflnc$multiplier <- 1/inflnc$degree
+#inflnc$multiplier[inflnc$treatment=="control" && inflnc$multiplier==Inf] <- 0
+##inflnc$id[inflnc$treatment=="control" && inflnc$multiplier==Inf]
+#inflnc$multiplier[inflnc$multiplier==Inf] <- 1
 inflnc$transmission <- a%*%as.matrix(inflnc$to_transmit)%*%0.5 + inflnc$scores
 inflnc$transmission2 <- a%*%as.matrix(inflnc$to_transmit)*inflnc$multiplier + inflnc$scores
 inflnc$transmission[inflnc$treatment=="treatment"] <- inflnc$scores[inflnc$treatment=="treatment"]
 inflnc$transmission2[inflnc$treatment=="treatment"] <- inflnc$scores[inflnc$treatment=="treatment"]
+inflnc$degree
+inflnc$multiplier
+
+
 inflnc[794,]
+b <- a[794,]
+b[b==1]
+
 
 
 pdf("Interference results.pdf", width = 6, height = 4)
-ggplot(as.data.frame(inflnc), aes(x = scores, y = transmission, color = treatment)) + geom_point()  + geom_abline() + ggtitle("Spread of influence") + scale_fill_discrete(guide=FALSE)
-ggplot(as.data.frame(inflnc), aes(x = transmission2, y = transmission, color = treatment)) + geom_point()  + geom_abline() + ggtitle("Spread of influence") + scale_fill_discrete(guide=FALSE)
+ggplot(as.data.frame(inflnc), aes(x = scores, y = transmission, color = treatment)) + geom_point()  + geom_abline() + ggtitle("Spread of influence") + scale_fill_discrete(guide=FALSE) + geom_text(aes(label=id),hjust=0, vjust=0)
+ggplot(as.data.frame(inflnc), aes(x = transmission2, y = transmission, color = treatment)) + geom_point()  + geom_abline() + ggtitle("Spread of influence") + scale_fill_discrete(guide=FALSE) 
 dev.off()
 
 inflnc$transmission[inflnc$transmission<inflnc$transmission2]
 inflnc$transmission2[inflnc$transmission<inflnc$transmission2]
+inflnc$id[inflnc$transmission<inflnc$transmission2]
+inflnc$id[inflnc$multiplier==Inf]
+
 0
 
 
