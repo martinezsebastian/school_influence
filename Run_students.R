@@ -11,6 +11,8 @@
 ###### and then do the same example assuming that there is some 
 ###### sort of spillover through the network
 
+if(!require(xtable)) install.packages("xtable",repos = "http://cran.us.r-project.org")
+library("xtable")
 
 setwd("/Users/sebastianmartinez/Dropbox/0. UoG/Projects/RCT Sim")
 
@@ -22,8 +24,8 @@ source(file = "Students.R")
 
 
 # Make a school with 1000 students
-n_students <- 200
-n_classrooms <- 2
+n_students <- 100
+n_classrooms <- 1
 schl <- school(npop = n_students, nrooms = n_classrooms)
 head(schl)
 
@@ -31,15 +33,19 @@ head(schl)
 cbbPalette <- c("#56B4E9", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 # Two simple plots showing the difference in the way that the scores are calculated
-q1 <- ggplot(schl[schl$rooms=="Room1",], aes(x = attitudes, y = scores2, color = treatment)) + geom_point()+ geom_smooth() + scale_colour_manual(values=cbbPalette) + ggtitle("Classroom 1")
+q1 <- ggplot(schl[schl$rooms=="Room1",], aes(x = attitudes, y = scores, color = treatment)) + geom_point()+ geom_smooth() + scale_colour_manual(values=cbbPalette) + labs(y = "Student scores", x = "Attitude towards education")
 q2 <- ggplot(schl[schl$rooms=="Room2",], aes(x = attitudes, y = scores2, color = treatment)) + geom_point()+ geom_smooth() +  scale_colour_manual(values=cbbPalette) + ggtitle("Classroom 2")
 
+setwd("/Users/sebastianmartinez/Dropbox/0. UoG/1/Posters and Presentations and Drafts/SPHSU Conference")
+pdf("classrooms.pdf", width = 8, height = 4)
+q1
+dev.off()
 
 # Multiplot of the two different scores
 #setwd("/Users/sebastianmartinez/Dropbox/0. UoG/1/Posters and Presentations and Drafts/Drafts/Matching/2")
-pdf("classrooms.pdf", width = 8, height = 4)
-q <- multiplot(q1, q2, cols=2)
-dev.off()
+#pdf("classrooms.pdf", width = 8, height = 4)
+#q <- multiplot(q1, q2, cols=2)
+#dev.off()
 # You can see that scores2 has a connection with the attitudes. This makes more sense
 #typeof(q)
 #ggsave("classrooms.pdf", width = 8, height = 4, plot = q)
@@ -47,39 +53,49 @@ dev.off()
 ############
 ### THIS DEFINES THE EFFECT OF THE INTERVENTION
 ############
-improvement <- 1.5
+improvement <- 1.8
 
 
 # Replicates the school and applies the treatment
-t_schl <- schl
-conditions <- t_schl$treatment=="treatment"&t_schl$rooms=="Room1"
-t_schl$scores2[conditions] <- (t_schl$scores2[conditions])*improvement
+conditions <- schl$treatment=="treatment"&schl$rooms=="Room1"
+schl$naive_new_scores <- schl$scores
+schl$naive_new_scores[conditions] <- (schl$scores[conditions])*improvement
 
 
 # This calculates the Average Treatment Effect
-ate1 <- ATE(Y = t_schl$scores2, Ti = ifelse(conditions,1,0), X = as.matrix(t_schl$attitudes))
+ate1 <- ATE(Y = schl$naive_new_scores, Ti = ifelse(conditions,1,0), X = as.matrix(schl$attitudes))
 summary(ate1)
-
-ate2 <- ATE(Y = t_schl$scores2, Ti = ifelse(t_schl$treatment=="treatment",1,0), X = as.matrix(t_schl$attitudes))
-summary(ate2)
 # I do not know how to read this graph
-plot(ate1)
+#plot(ate1)
 
 
 # This bit makes a simple comparison to see visually what was the effect of the treatment on the treated
-comparison_pre <- data.frame(schl)
+comparison_pre <- data.frame(schl[,c("attitudes", "scores", "id", "treatment")])
 comparison_pre$when <- "pre"
-comparison_post <- data.frame(t_schl)
+comparison_post <- data.frame(schl[,c("attitudes", "naive_new_scores", "id", "treatment")])
+comparison_post$scores <- comparison_post$naive_new_scores
+comparison_post <- data.frame(comparison_post[,c("attitudes", "scores", "id", "treatment")])
 comparison_post$when <- "post"
-
 comparison <- rbind(comparison_pre,comparison_post)
+rm(comparison_pre, comparison_post)
 
-q3 <- ggplot(comparison[comparison$rooms=="Room1",], aes(x = attitudes, y = scores2, color = when, shape = when)) + geom_point() + geom_smooth() + scale_colour_manual(values=cbbPalette) + ggtitle("Classroom 1 (pre and post)")
-q4 <- ggplot(comparison[comparison$rooms=="Room2",], aes(x = attitudes, y = scores2, color = when, shape = when)) + geom_point() + geom_smooth() + scale_colour_manual(values=cbbPalette) + ggtitle("Classroom 2 (pre and post)")
+q3 <- ggplot(comparison[comparison$treatment == "treatment",], aes(x = attitudes, y = scores, shape = when)) + geom_point() + geom_smooth(aes(x = attitudes, y = scores, color = when)) + scale_colour_manual(values=cbbPalette) + labs(y = "Student scores", x = "Attitude towards education")
 
-pdf("classrooms_prepost.pdf", width = 8, height = 4)
-q <- multiplot(q3, q4, cols=2)
+q4 <- ggplot(comparison[comparison$treatment == "control",], aes(x = attitudes, y = scores, shape = when)) + geom_point() + geom_smooth(aes(x = attitudes, y = scores, color = when)) + scale_colour_manual(values=cbbPalette) + labs(y = "Student scores", x = "Attitude towards education")
+
+
+pdf("treatmentprepost.pdf", width = 8, height = 4)
+q3
 dev.off()
+
+pdf("controlprepost.pdf", width = 8, height = 4)
+q4
+dev.off()
+
+
+#pdf("classrooms_prepost.pdf", width = 8, height = 4)
+#q <- multiplot(q3, q4, cols=2)
+#dev.off()
 
 ############# Now I want to make the network between the students
 ## Ideally this would be a function that takes a school and returns a school plus the network
@@ -87,7 +103,7 @@ dev.off()
 # random graph based on classroom 1
 class1 <- schl[schl$rooms=="Room1",]
 #net <- sna::rgraph(length(class1[,1]),  mode = "graph", tprob = 0.0022)
-net <- sna::rgraph(length(class1[,1]),  mode = "graph", tprob = 0.02)
+net <- sna::rgraph(length(class1[,1]),  mode = "graph", tprob = (1/n_students)*5)
 net <- network::network(net, directed = FALSE)
 a <- as.matrix(print(net,print.adj = TRUE, matrix.type = "adjacency"))
 #View(as.data.frame(a))
@@ -99,64 +115,72 @@ net$deg <- sna::degree(net)
 
 
 
- 
-pdf("Classroom1_Network.pdf", width = 6, height = 4)
+col = c("control" = cbbPalette[1], "treatment" = cbbPalette[2])
+pdf("Classroom_Network.pdf", width = 6, height = 4)
 #ggnet2(net, node.size = 1.5, node.color = net$treat, edge.size = 0.5, edge.color = "grey", node.label = net$id)
-ggnet2(net, node.size = 1.5, node.color = net$treat, edge.size = 0.5, edge.color = "grey")
+  ggnet2(net, node.size = 2, node.color = net$treat, edge.size = 0.5, edge.color = "gray", palette = col)
 dev.off()
 
-
-
-inflnc <- data.frame(to_transmit=class1$scores2)
+## THIS SECTION CREATES THE LEARNING MULTIPLIER
+inflnc <- data.frame(to_transmit = class1$scores)
 inflnc$id <- class1$id
 inflnc$treatment <- class1$treatment
 inflnc$scores <- inflnc$to_transmit
 inflnc$degree <- sna::degree(net, gmode = "graph")
 inflnc$to_transmit[inflnc$treatment=="control"] <- 0
 inflnc$multiplier <- 1/inflnc$degree
-#inflnc$multiplier[inflnc$treatment=="control" && inflnc$multiplier==Inf] <- 0
-##inflnc$id[inflnc$treatment=="control" && inflnc$multiplier==Inf]
-#inflnc$multiplier[inflnc$multiplier==Inf] <- 1
-inflnc$transmission <- a%*%as.matrix(inflnc$to_transmit)%*%0.5 + inflnc$scores
-inflnc$transmission2 <- a%*%as.matrix(inflnc$to_transmit)*inflnc$multiplier + inflnc$scores
+inflnc$multiplier[inflnc$multiplier==Inf]  <- 0
+
+inflnc$transmission <- a%*%as.matrix(inflnc$to_transmit)*inflnc$multiplier + inflnc$scores
 inflnc$transmission[inflnc$treatment=="treatment"] <- inflnc$scores[inflnc$treatment=="treatment"]
-inflnc$transmission2[inflnc$treatment=="treatment"] <- inflnc$scores[inflnc$treatment=="treatment"]
-inflnc$degree
-inflnc$multiplier
-
-
-inflnc[794,]
-b <- a[794,]
-b[b==1]
+inflnc$learning <- inflnc$transmission/inflnc$scores
+inflnc$learning <- ifelse(inflnc$learning > 1, 2, inflnc$learning)
+inflnc$influenced <- inflnc$scores * inflnc$learning
 
 
 
 pdf("Interference results.pdf", width = 6, height = 4)
-ggplot(as.data.frame(inflnc), aes(x = scores, y = transmission, color = treatment)) + geom_point()  + geom_abline() + ggtitle("Spread of influence") + scale_fill_discrete(guide=FALSE) + geom_text(aes(label=id),hjust=0, vjust=0)
-ggplot(as.data.frame(inflnc), aes(x = transmission2, y = transmission, color = treatment)) + geom_point()  + geom_abline() + ggtitle("Spread of influence") + scale_fill_discrete(guide=FALSE) 
+
+ggplot(as.data.frame(inflnc), aes(x = scores, y = influenced, color = treatment)) + geom_point() + scale_fill_discrete(guide=FALSE) + 
+  #  geom_text(aes(label=id),hjust=0, vjust=0) + 
+  xlim(0,25) + ylim(0,25) +
+  geom_abline() +
+  geom_abline(slope = 2) +
+  labs(title = "Spread of influence", subtitle = "Learning multiplier", y = "Influenced scores", x = "Original scores")
 dev.off()
 
-inflnc$transmission[inflnc$transmission<inflnc$transmission2]
-inflnc$transmission2[inflnc$transmission<inflnc$transmission2]
-inflnc$id[inflnc$transmission<inflnc$transmission2]
-inflnc$id[inflnc$multiplier==Inf]
 
-0
-
-
-
-class1$inter_scores <- inflnc$transmission
+class1$learning <- inflnc$learning
 
 # Replicates the school and applies the treatment
-inter_t_schl <- class1
-inter_t_schl$inter_scores[inter_t_schl$treatment=="treatment"] <- (inter_t_schl$inter_scores[inter_t_schl$treatment=="treatment"])*improvement
-inter_t_schl$scores2[inter_t_schl$treatment=="treatment"] <- (inter_t_schl$scores2[inter_t_schl$treatment=="treatment"])*improvement
+# Creating the new scores
+class1$true_new_scores <- class1$scores
+# The true new scores for the treated units is just the improvement
+class1$true_new_scores[class1$treatment=="treatment"] <- (class1$scores[class1$treatment=="treatment"])*improvement
+# The true new scores for the control units is at most the total improvement
+class1$true_new_scores[class1$treatment=="control"] <- (class1$scores[class1$treatment=="control"])*(improvement*(class1$learning[class1$treatment=="control"]-1))
 
-inter_ate <- ATE(Y = inter_t_schl$inter_scores, Ti = ifelse(inter_t_schl$treatment=="treatment",1,0), X = as.matrix(inter_t_schl$attitudes))
-non_inter_ate <- ATE(Y = inter_t_schl$scores2, Ti = ifelse(inter_t_schl$treatment=="treatment",1,0), X = as.matrix(inter_t_schl$attitudes))
+class1$true_treatment <- "control"
+class1$true_treatment <- ifelse(class1$treatment=="treatment", "treatment", "control")
+class1$true_treatment <- ifelse(class1$treatment=="control" & (class1$learning-1)==0, "control", "treatment")
 
-summary(inter_ate)
+non_inter_ate <- ATE(Y = class1$naive_new_scores, Ti = ifelse(class1$treatment=="treatment",1,0), X = as.matrix(class1$attitudes))
+inter_ate <- ATE(Y = class1$true_new_scores, Ti = ifelse(class1$treatment=="treatment",1,0), X = as.matrix(class1$attitudes))
+correct_treatment <- ATE(Y = class1$true_new_scores, Ti = ifelse(class1$true_treatment=="treatment",1,0), X = as.matrix(class1$attitudes), ATT = TRUE)
+
+
+out_non_inter_ate <- summary(non_inter_ate)
+out_inter_ate <- summary(inter_ate)
+out_corr_treat <- summary(correct_treatment)
+
+print(xtable(out_inter_ate$Estimate, type = "latex"), file = "interate.tex")
+print(xtable(out_non_inter_ate$Estimate, type = "latex"), file = "noninterate.tex")
+print(xtable(out_corr_treat$Estimate, type = "latex"), file = "correct.tex")
+
 summary(non_inter_ate)
+summary(inter_ate)
+summary(correct_treatment)
+ggnet2(net, node.size = 2, node.color = net$treat, edge.size = 0.5, edge.color = "gray", palette = col)
 
 
 

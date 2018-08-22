@@ -30,7 +30,7 @@ if(!require(igraph)) install.packages("igraph",repos = "http://cran.us.r-project
 library("igraph")
 if(!require(sna)) install.packages("sna",repos = "http://cran.us.r-project.org")
 library("sna")
-if(!require(ggnet)) devtools::install_github("briatte/ggnet"))
+if(!require(ggnet)) devtools::install_github("briatte/ggnet")
 library("ggnet")
 
 
@@ -136,8 +136,8 @@ school <- function(nsim = 100,
   
   # This makes two kinds of scores, one that includes the attitudes and one that does not
   # I am still to verify if this has an effect
-  scores1 <- matrix((raw[,1]+gamma), ncol = 1)
-  scores2 <- matrix((attitudes+raw[,1]+gamma), ncol = 1)
+  
+  scores <- matrix((attitudes+raw[,1]+gamma), ncol = 1)
 
   # This makes the treatments, and assigns the treated classrooms
   treatment <- matrix(ifelse(runif(npop)>0.5, "treatment", "control"), ncol = 1)
@@ -152,7 +152,7 @@ school <- function(nsim = 100,
   treatment_by_room[treatment_room=="control room"] <- "control"
   
   # Saves everything in a data frame
-  school <- data.frame(scores1, scores2, attitudes, treatment, rooms, treatment_room, treatment_by_room)
+  school <- data.frame(scores, attitudes, treatment, rooms, treatment_room, treatment_by_room)
   school$id <- rownames(school)
   # Return
   return(school)
