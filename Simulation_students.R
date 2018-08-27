@@ -28,12 +28,192 @@ source(file = "Students.R")
 ## More Covariates
 ## I mean, this is a great treatment, and we do see an effect. Make it more complicated
 
+<<<<<<< HEAD
 
 SIMGRID <- list(n_students = seq(from = 25, to = 300, by = 25),
            n_classrooms = 1,
            dens = seq(from = 0.0001, to = 0.01, by = 0.0005),
            improv = 1.8) %>%
   cross_df()
+=======
+st <- t(matrix(seq(from = 25, to = 500, by = 25), ncol = 5))
+dns <- t(matrix(seq(from = 0.0005, to = 0.05, by = 0.0005), ncol = 20))
+# Divide the grid into groups of 5X20
+
+out <- vector(mode = "list", length = 5*20)
+count <- 1
+student_steps <- 2 
+density_steps <- 5
+
+for (i in (1:student_steps)) {
+  for (j in (1:(density_steps*4))) {
+    success <- NULL    
+    attempts <- 1 
+    while (is.null(success) && attempts <=10){
+      attempts <- attempts + 1
+      try({
+            SIMGRID <- list(n_students = st[i,],
+                        n_classrooms = 1,
+                        dens = dns[j,],
+                        improv = 1.8) %>% cross_df()
+              out[[count]] <- sim_results(sim_grid = SIMGRID, SIMULATIONS = 20)
+              success <- out[[count]]
+              print(attempts)
+      })
+    }
+      count <- count + 1
+      print( c(i, j) )
+    }
+}
+
+
+
+
+to_plot <- data.frame(matrix(ncol = 6 ))
+colnames(to_plot) <- (c("n_students", "density", "true_est.mean",  "true_p.mean", "naive_est.mean",  "naive_p.mean"))
+
+
+
+for (i in 1:(student_steps*density_steps*4)){
+  to_plot <- rbind(extract_to_plot(out[[i]]), to_plot)
+}
+to_plot <- to_plot[-(nrow(to_plot)),]
+
+# save(out, file = "School_out.RData")
+# save(to_plot, file = "School_to_plot.RData")
+# load("School_to_plot.RData")
+# load("/Users/sebastianmartinez/Dropbox/0. UoG/Projects/BIG FILES/School_out.RData")
+
+
+
+
+cbbPalette <- c("#56B4E9", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+cbbPalette <- c("#F0E442")
+cbbPalette <- c("#D55E00")
+
+## INTERPOL
+naive_est_interpol <- ggplot(data = to_plot, aes(x = density, y = n_students)) + 
+  geom_raster(aes(fill = naive_est.mean), 
+              interpolate = TRUE) +
+  scale_fill_gradientn(colours=c("#000000", "#D55E00"), 
+                       guide = guide_colorbar(barwidth = 1, 
+                                              barheight = 10, 
+                                              title = "Mean Estimate", 
+                                              ticks = FALSE, 
+                                              reverse = TRUE, 
+                                              title.theme = element_text(angle = -90), 
+                                              title.position = "right", 
+                                              title.hjust = 0.5,
+                                              draw.ulim = TRUE,
+                                              draw.llim = TRUE), 
+                       breaks = c(0, 2, 4, 6, 8, 10)) +
+  labs(y = "Number of Students", x = "Probability")
+
+
+
+## TILEZ
+true_est_tiles <- ggplot(data = to_plot, aes(x = density, y = n_students)) + 
+  geom_tile(aes(fill = true_est.mean)) +
+  scale_fill_gradientn(colours=c("#000000", "#D55E00")) +
+  labs(y = "Number of Students", x = "Probability") + 
+  guides(fill=guide_legend(title="Mean Estimate"))
+
+## INTERPOL
+true_est_interpol <- ggplot(data = to_plot, aes(x = density, y = n_students)) + 
+  geom_raster(aes(fill = true_est.mean), 
+              interpolate = TRUE) +
+  scale_fill_gradientn(colours=c("#000000", "#D55E00"), 
+                       guide = guide_colorbar(barwidth = 1, 
+                                              barheight = 10, 
+                                              title = "Mean Estimate", 
+                                              ticks = FALSE, 
+                                              reverse = TRUE, 
+                                              title.theme = element_text(angle = -90), 
+                                              title.position = "right", 
+                                              title.hjust = 0.5,
+                                              draw.ulim = TRUE,
+                                              draw.llim = TRUE), 
+                       breaks = c(0, 2, 4, 6, 8, 10)) +
+  labs(y = "Number of Students", x = "Probability")
+
+## TILES
+true_p_tiles <- ggplot(data = to_plot, aes(x = density, y = n_students)) + 
+  geom_tile(aes(fill = true_p.mean)) +
+  scale_fill_gradientn(colours=c("#000000", "#D55E00")) +
+  labs(y = "Number of Students", x = "Probability") + 
+  guides(fill=guide_legend(title="Mean Significance"))
+
+## INTERPOL
+true_p_interpol <- ggplot(data = to_plot, aes(x = density, y = n_students)) + 
+  geom_raster(aes(fill = true_p.mean), 
+              interpolate = TRUE) +
+  scale_fill_gradientn(colours=c("#000000", "#D55E00"), 
+                       guide = guide_colorbar(barwidth = 1, 
+                                              barheight = 10, 
+                                              title = "Mean Significance", 
+                                              ticks = FALSE, 
+                                              reverse = TRUE, 
+                                              title.theme = element_text(angle = -90), 
+                                              title.position = "right", 
+                                              title.hjust = 0.5), 
+                       breaks = seq(from = 0, to = 0.55, by = 0.05)) +
+  labs(y = "Number of Students", x = "Probability")
+
+## INTERPOL
+naive_p_interpol <- ggplot(data = to_plot, aes(x = density, y = n_students)) + 
+  geom_raster(aes(fill = naive_p.mean), 
+              interpolate = TRUE) +
+  scale_fill_gradientn(colours=c("#000000", "#D55E00"), 
+                       guide = guide_colorbar(barwidth = 1, 
+                                              barheight = 10, 
+                                              title = "Mean Significance", 
+                                              ticks = FALSE, 
+                                              reverse = TRUE, 
+                                              title.theme = element_text(angle = -90), 
+                                              title.position = "right", 
+                                              title.hjust = 0.5), 
+                       breaks = seq(from = 0, to = 0.3, by = 0.025)) +
+  labs(y = "Number of Students", x = "Probability")
+
+
+
+
+pdf("true_est_tiles.pdf", width = 8, height = 4)
+true_est_tiles
+dev.off()
+
+pdf("true_p_tiles.pdf", width = 8, height = 4)
+true_p_tiles
+dev.off()
+
+pdf("true_est_interpol.pdf", width = 8, height = 4)
+true_est_interpol
+dev.off()
+
+pdf("true_p_interpol.pdf", width = 8, height = 4)
+true_p_interpol
+dev.off()
+
+pdf("naive_est_interpol.pdf", width = 8, height = 4)
+naive_est_interpol
+dev.off()
+
+pdf("naive_p_interpol.pdf", width = 8, height = 4)
+naive_p_interpol
+dev.off()
+
+
+
+# Option to make lines around tiles white
+# ggplot(data = sum_extraction_true2, aes(x = density, y = n_students, fill = true_est.mean)) + geom_tile(colour="white",size=0.25)
+
+
+extract_to_plot <- function(to_extract){
+  extraction <- sim_extract(to_extract)
+  sum_extraction <- doBy::summaryBy(true_est + true_p + naive_est + naive_p ~ n_students + density, data = extraction, FUN = mean)  
+  return(sum_extraction)
+}
+>>>>>>> ab832bb... Outout to latex
 
 
 
