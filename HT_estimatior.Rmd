@@ -1,0 +1,138 @@
+---
+title: "Comparison between Horwitz-Thompson and H\'ajek Estimators"
+date: 11.09.2018
+output: html_document
+---
+
+```{r, echo = FALSE}
+###### ------------------------------------------------------------
+###### ------------------------------------------------------------
+###### NAME: Horwitz-Thompson and Hajek estimators
+###### DATE: September 2018
+###### Version: 1
+###### ------------------------------------------------------------
+###### ------------------------------------------------------------
+###### Script to understand the HT and H estimators to include them in the school simulation
+###### Following: https://cran.r-project.org/web/packages/sampling/vignettes/HT_Hajek_estimators.pdf
+if(!require(sampling)) install.packages("sampling",repos = "http://cran.us.r-project.org")
+library("sampling")
+```
+# The Horwitz-Thompson and Haj\'ek Estimators
+
+The Horwitz-Thompson estimator estimates the sum of a variable $y_i$ over a subgroup $s$ of a population $U$, weighing each item according to the probability $\pi_i$ to draw from the sample. 
+
+$$\hat{y}_{HT}=\sum_{i\in s}{\frac{y_i}{\pi_i}}$$
+
+
+# Setting up the simulation
+```{r}
+data("belgianmunicipalities")
+attach(belgianmunicipalities)
+
+# Define sample size
+n <- 20
+# Define inclusion probabilities
+# Tot04 contains the Belgian population on the 1st of July of 2004
+# The probability of inclusion is directly related to the number of inhabitants for each municipalities
+# sampling::inclusionprobabilities defines a probability based on the values given by 'a', 
+# proportional to the size of the sampling design given by 'n'
+pik <- sampling::inclusionprobabilities(a = Tot04, n = n)
+N <- length(pik)
+# Now we look at the number of simulations
+sim <- 10
+s_ht <- s_h <- array(0, c(sim, 4))
+```
+
+## Case 1. Constant
+The $y_i$ is constant for $i = 1, \cdots, N$.
+```{r}
+y1 <- rep(3, N)
+```
+
+
+## Case 2. Poisson
+We use Poisson sampling to draw a sample $s$. 
+
+```{r}
+# TaxableIncome includes the total taxable income by municipality at 2004
+y2 <- TaxableIncome
+```
+
+
+## Case 3. Model 1
+The $y_i$ are generated using the following model: 
+$$x_i = i,\  \pi_i = \frac{n \cdot x_i }{\displaystyle{\sum_{i=1}^N{x_i}}},\ y_i = \frac{1}{\pi_i}$$
+In this case, the $\pi_i$ are weakly or negatively correlated to the $y_i$.  
+
+```{r}
+x <- 1:N
+pik_3 <- inclusionprobabilities(x, n)
+y3 <- 1/pik_3
+```
+
+
+## Case 4. Model 2
+The $y_k$ are generated using the following model: 
+$$x_i = i,\ y_i = 5(x_i + i),\ i \sim N(0, \frac{1}{3})$$
+in this case the Horvitz-Thompson estimator should perform better than the H\'ajek
+estimator.
+
+```{r}
+epsilon <- rnorm(N, 0, sqrt(1/3))
+pik_4 <- pik_3
+y4 <- 5*(x + epsilon)
+```
+
+# Simulation 
+
+```{r,  echo = TRUE, results = "hide"}
+# Define a vector to include the HT and the H estimators
+ht <- numeric(4)
+hajek <- numeric(4)
+
+# Run the simulation for the predefined number of simulations before
+i <- 1
+for(i in 1:sim){
+  # Indicate where we are in the simulation
+  cat("Simulation ",i,"\n")
+  # Case 1
+  cat("Case 1\n")
+  # samping::UPtille samples from a distribution of unequal probabilities, without replacement, with a fixed sample size
+  # It uses the probabilities of inclusion defined above
+  s <- sampling::UPtille(pik)
+  # Calculating the Horwitz-Thompson estimator based on the sampling 's'
+  ht[1] <- HTestimator(y1[s == 1], pik[s == 1])
+  # Calculating the H??jek estimator based on the sampling 's'
+  # 'N' is the size of the population to calculate the 'total' estimator, not the mean estimator
+  hajek[1] <- Hajekestimator(y1[s == 1], pik[s == 1], N, type="total")
+  
+  # Case 2
+  cat("Case 2\n")
+  # Sampling using a poisson process
+  s1 <- sampling::UPpoisson(pik)
+  # Calculating the Horwitz-Thompson estimator based on the sampling 's1'
+  ht[2] <- sampling::HTestimator(y2[s1 == 1], pik[s1 == 1])
+  # Calculating the H??jek estimator based on the sampling 's1'
+  hajek[2] <- sampling::Hajekestimator(y2[s1 == 1], pik[s1 == 1], N, type = "total")
+  
+  # Case 3
+  cat("Case 3\n")
+  # Calculating the Horwitz-Thompson estimator based on the sampling 's'
+  ht[3] <-  sampling::HTestimator(y3[s == 1], pik_3[s == 1])
+  # Calculating the H??jek estimator based on the sampling 's'
+  hajek[3] <- sampling::Hajekestimator(y3[s == 1], pik_3[s == 1], N, type = "total")
+  
+  # Case 4
+  cat("Case 4\n")
+  # Calculating the Horwitz-Thompson estimator based on the sampling 's'
+  ht[4] <- sampling::HTestimator(y4[s == 1], pik_4[s==1])
+  # Calculating the H??jek estimator based on the sampling 's'
+  hajek[4] <- sampling::Hajekestimator(y4[s == 1], pik_4[s == 1], N, type = "total")
+  
+  # Store the results in the simulation vectors
+  s_ht[i,] <- ht
+  s_h[i,] <- hajek
+  }
+```
+
+
